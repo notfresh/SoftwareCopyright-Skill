@@ -119,7 +119,7 @@ def load_selected_files(project: Path, selection_path: Path | None) -> list[dict
         raise SystemExit(
             "STOP_FOR_USER\n"
             "NEXT_ACTION: 代码文件选择尚未确认。请先确认或修改 草稿/代码文件选择.json，"
-            "再运行 `python3 scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage code-selection --note \"<用户确认内容>\"`。"
+            "再运行 `python3 <SKILL_DIR>/scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage code-selection --note \"<用户确认内容>\"`。"
         )
     items = data.get("files") if isinstance(data, dict) else data
     if not isinstance(items, list):
