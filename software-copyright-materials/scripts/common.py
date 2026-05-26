@@ -49,6 +49,75 @@ CODE_EXTS = {
     ".md",
 }
 
+KNOWN_CONFIG_FILES = {
+    ".babelrc",
+    ".eslintrc",
+    ".eslintrc.json",
+    ".eslintrc.yaml",
+    ".eslintrc.yml",
+    ".prettierrc",
+    ".prettierrc.json",
+    ".prettierrc.yaml",
+    ".prettierrc.yml",
+    ".swcrc",
+    "angular.json",
+    "app.json",
+    "astro.config.mjs",
+    "astro.config.ts",
+    "babel.config.js",
+    "babel.config.json",
+    "Cargo.lock",
+    "Cargo.toml",
+    "composer.json",
+    "docker-compose.yaml",
+    "docker-compose.yml",
+    "eslint.config.cjs",
+    "eslint.config.js",
+    "eslint.config.mjs",
+    "go.mod",
+    "go.sum",
+    "jsconfig.json",
+    "lerna.json",
+    "manifest.json",
+    "next.config.js",
+    "next.config.mjs",
+    "next.config.ts",
+    "nuxt.config.js",
+    "nuxt.config.ts",
+    "nx.json",
+    "package-lock.json",
+    "package.json",
+    "playwright.config.js",
+    "playwright.config.ts",
+    "postcss.config.cjs",
+    "postcss.config.js",
+    "prettier.config.cjs",
+    "prettier.config.js",
+    "prettier.config.mjs",
+    "project.json",
+    "pyproject.toml",
+    "rollup.config.js",
+    "rollup.config.mjs",
+    "rollup.config.ts",
+    "svelte.config.js",
+    "stylelintrc.json",
+    "tailwind.config.js",
+    "tailwind.config.ts",
+    "tsconfig.app.json",
+    "tsconfig.json",
+    "tsconfig.node.json",
+    "tslint.json",
+    "turbo.json",
+    "vite.config.js",
+    "vite.config.mjs",
+    "vite.config.ts",
+    "vitest.config.js",
+    "vitest.config.ts",
+    "webpack.config.js",
+    "webpack.config.ts",
+    "workspace.json",
+}
+
 FRONTEND_EXTS = {
     ".vue",
     ".ts",
@@ -77,9 +146,6 @@ SUPPLEMENT_CODE_EXTS = {
     ".swift",
     ".sql",
     ".sh",
-    ".toml",
-    ".yml",
-    ".yaml",
     ".json",
 }
 
@@ -151,14 +217,21 @@ def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def count_text_lines(path: Path) -> int:
+def count_text_lines(path: Path, skip_blank: bool = True) -> int:
     try:
         text = read_text(path)
     except Exception:
         return 0
     if not text:
         return 0
+    if skip_blank:
+        return sum(1 for line in text.splitlines() if line.strip())
     return len(text.splitlines())
+
+
+def is_known_config_file(path: Path) -> bool:
+    """Return True for well-known config files that shouldn't count as source code."""
+    return path.name in KNOWN_CONFIG_FILES
 
 
 def looks_binary(path: Path) -> bool:

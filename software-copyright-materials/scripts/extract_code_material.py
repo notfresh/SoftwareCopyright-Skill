@@ -7,10 +7,10 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from common import COPYRIGHT_CODE_EXTS, FRONTEND_EXTS, ensure_dir, iter_project_files, looks_binary, read_json, read_text, rel, safe_filename, write_json
+from common import COPYRIGHT_CODE_EXTS, FRONTEND_EXTS, ensure_dir, is_known_config_file, iter_project_files, looks_binary, read_json, read_text, rel, safe_filename, write_json
 
 
-LINES_PER_PAGE = 60
+LINES_PER_PAGE = 50
 SPLIT_THRESHOLD_PAGES = 60
 
 
@@ -52,6 +52,8 @@ def category_weight(path: Path, project: Path) -> tuple[int, str]:
 def should_skip_file(path: Path) -> bool:
     if path.suffix.lower() not in COPYRIGHT_CODE_EXTS:
         return True
+    if is_known_config_file(path):
+        return True
     if looks_binary(path):
         return True
     try:
@@ -75,19 +77,7 @@ def selected_line_estimate(item: dict[str, Any]) -> int:
         total = int(item.get("line_count") or 0)
     except (TypeError, ValueError):
         total = 0
-    try:
-        start = int(item.get("start_line") or 1)
-    except (TypeError, ValueError):
-        start = 1
-    try:
-        end = int(item.get("end_line")) if item.get("end_line") not in (None, "", 0) else total
-    except (TypeError, ValueError):
-        end = total
-    if total <= 0:
-        return 0
-    start = max(1, min(start, total))
-    end = max(start, min(end, total))
-    return end - start + 1 + 2
+    return total + 2 if total > 0 else 0
 
 
 def available_pages_from_selection(selection_path: Path | None, lines_per_page: int) -> tuple[int, int, int]:
@@ -119,7 +109,7 @@ def load_selected_files(project: Path, selection_path: Path | None) -> list[dict
         raise SystemExit(
             "STOP_FOR_USER\n"
             "NEXT_ACTION: 代码文件选择尚未确认。请先确认或修改 草稿/代码文件选择.json，"
-            "再运行 `python3 scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage code-selection --note \"<用户确认内容>\"`。"
+            "再运行 `python3 <SKILL_DIR>/scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage code-selection --note \"<用户确认内容>\"`。"
         )
     items = data.get("files") if isinstance(data, dict) else data
     if not isinstance(items, list):
@@ -135,26 +125,10 @@ def load_selected_files(project: Path, selection_path: Path | None) -> list[dict
         selected.append(
             {
                 "path": str(path_value),
-                "start_line": item.get("start_line") or 1,
-                "end_line": item.get("end_line"),
                 "selected": True,
             }
         )
     return selected
-
-
-def normalize_line_range(start_line: Any, end_line: Any, total_lines: int) -> tuple[int, int]:
-    try:
-        start = int(start_line or 1)
-    except (TypeError, ValueError):
-        start = 1
-    try:
-        end = int(end_line) if end_line not in (None, "", 0) else total_lines
-    except (TypeError, ValueError):
-        end = total_lines
-    start = max(1, min(start, total_lines or 1))
-    end = max(start, min(end, total_lines))
-    return start, end
 
 
 def collect_code_lines(project: Path, selection_path: Path | None) -> tuple[list[str], list[dict[str, Any]]]:
@@ -172,22 +146,20 @@ def collect_code_lines(project: Path, selection_path: Path | None) -> tuple[list
             continue
         text = read_text(path)
         source_lines = text.splitlines()
-        start_line, end_line = normalize_line_range(item.get("start_line"), item.get("end_line"), len(source_lines))
-        selected_lines = source_lines[start_line - 1 : end_line]
+        selected_lines = source_lines
         start = len(all_lines) + 1
         marker = marker_for(path, project)
-        if start_line != 1 or end_line != len(source_lines):
-            marker = f"{marker} (lines {start_line}-{end_line})"
         all_lines.append(marker)
         all_lines.extend(selected_lines)
         all_lines.append("")
         end = len(all_lines)
+        source_end_line = len(source_lines)
         manifest_files.append(
             {
                 "path": rel(path, project),
                 "source_line_count": len(source_lines),
-                "selected_line_start": start_line,
-                "selected_line_end": end_line,
+                "selected_line_start": 1,
+                "selected_line_end": source_end_line,
                 "selected_line_count": len(selected_lines),
                 "material_line_start": start,
                 "material_line_end": end,

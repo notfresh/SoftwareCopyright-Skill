@@ -7,8 +7,17 @@ description: >
   The workflow analyzes the imported project, extracts real source code, creates Markdown
   drafts for user confirmation, then uses bundled DOCX tooling to produce final
   Word documents and TXT.
+user-invocable: true
+compatibility: >
+  Requires Python 3.10+ with python-docx (pip install python-docx).
+  Optional: .NET SDK 8.0+ for full OpenXML DOCX validation (run vendor/docx-toolkit/scripts/setup.sh).
+allowed-tools: >
+  Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
 metadata:
   short-description: 生成软著申请资料 Word/TXT
+  author: Fokkyp
+  version: "1.0"
+  repository: https://github.com/Fokkyp/SoftwareCopyright-Skill
 ---
 
 # 软著申请资料生成
@@ -26,11 +35,12 @@ metadata:
 - 写申请表和操作手册前，必须先形成模型研判后的 `草稿/业务理解.md/json`，理解软件业务、行业、目标用户、核心价值和操作流程。
 - 脚本只能收集项目证据、校验字段和生成文件；行业判断、功能抽取、代码抽取选择、操作手册结构必须由模型阅读项目后决定，不得依赖脚本关键字表或固定范本。
 - 优先抽取前端代码：入口、路由、页面、核心组件、接口封装、状态管理、工具函数。
-- 生成代码材料前，必须先生成代码文件候选清单；模型理解项目后填写抽取文件、行段和选择理由，再让用户确认或修改。
+- 生成代码材料前，必须先生成代码文件候选清单；模型理解项目后填写抽取文件和选择理由，再让用户确认或修改。
 - 代码优先抽取模型和用户确认的、最能体现软件真实功能和运行逻辑的源码；不足 60 页时，从其他相关源码文件补充到 60 页；候选源码仍不足 60 页时，才生成全部代码文档。
-- 操作手册面向审核员，用通用语言说明软件用途和操作流程。
-- 操作手册草稿必须按章节写成通顺段落，不能只给功能列表；每个核心模块都要用普通人能看懂的语言说明模块用途、操作过程和结果反馈。避免代码、框架、接口、状态管理、异步任务等技术化表达；撰写过程中由 agent 自行循环检查、扩写和修正，完整草稿完成后只向用户发起一次整体确认。
-- 操作手册必须去除明显“AI 味”：避免空泛赞美、营销口号、万能句式、每章同一结构、过度对称的排比、没有项目细节的正确废话、频繁使用“旨在、赋能、一站式、智能化、高效便捷、显著提升、强大能力、丰富功能”等套话。每段都应能回答“这个项目里这个功能具体做什么、用户看见什么、操作后有什么结果”。
+- 操作手册成稿应像真实软件随附的操作说明，而不是研发说明、功能清单或 AI 生成的汇总文。
+- 操作手册草稿必须按传统软著操作手册骨架组织：相关文档、说明、功能特点、系统要求、按真实页面/流程逐章操作、常见问题解答、术语表。一级章节标题使用中文大写序号，例如 `一、相关文档`，不得使用 `(1)、相关文档`。相关文档必须用表格指向总体设计、详细设计、测试案例等配套文档。正文尽量使用连续段落，不使用项目符号列表或 `1. 2. 3.` 编号列表。
+- 每个核心页面都要用普通用户视角说明页面用途、进入位置、用户可见内容、用户动作、输入限制或异常提示、结果反馈和截图预留。不得把章节写成“进入方式：/页面内容：/操作步骤：/操作规则：/操作结果与反馈：”这种字段模板；这些信息要自然合并到段落里。避免代码、框架、接口、状态管理、异步任务等技术化表达；撰写过程中由 agent 自行循环检查、扩写和修正，完整草稿完成后只向用户发起一次整体确认。
+- 操作手册必须去除明显“AI 味”：避免空泛赞美、营销口号、万能句式、每章同一结构、头中尾固定结构、过度对称的排比、没有项目细节的正确废话、频繁使用“旨在、赋能、一站式、智能化、高效便捷、显著提升、强大能力、丰富功能”等套话。每段都应能回答“这个项目里这个功能具体做什么、用户看见什么、操作后有什么结果”。
 - 操作手册生成必须同步输出 `草稿/操作手册自检记录.md` 和 `草稿/操作手册自检记录.json`，记录初稿、按项目流程扩写、去制式表达等自检轮次；如果前 3 轮仍发现问题，必须继续补写修正，直到问题清零或记录无法自动修复的原因后再停止。
 - 截图方式必须先让用户选择：Chrome DevTools MCP、Codex Computer Use、用户自行截图。用户选完后，再检查当前 MCP / Computer Use 能力是否可用；如果用户说现在不截图、先跳过截图或截图失败，操作手册仍必须保留清晰可见的截图预留位置，正式 Word 中也要能看到。
 - 申请表信息中的硬件/系统环境必须让用户确认或填写，不能硬编码。
@@ -43,7 +53,7 @@ metadata:
 禁止使用“用户未选择则默认继续”的逻辑。用户回复确认后，先用确认脚本记录对应门禁，再进入下一阶段：
 
 ```bash
-python3 scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage <阶段名> --note "<用户确认内容>"
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage <阶段名> --note "<用户确认内容>"
 ```
 
 必须停住的门禁：
@@ -52,7 +62,7 @@ python3 scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage <
 - `project`：存在多个项目候选目录时，用户必须指定项目目录。
 - `business`：`草稿/业务理解.md` 生成后，用户必须确认行业、目标用户、核心功能和申请口径。
 - `application-fields`：`草稿/申请表信息.md` 生成后，用户必须补全并确认硬件、系统环境、著作权人、日期等字段。
-- `code-selection`：`草稿/代码文件选择.json` 生成后，用户必须确认或修改抽取文件和行段。
+- `code-selection`：`草稿/代码文件选择.json` 生成后，用户必须确认或修改抽取文件。
 - `screenshot-method`：操作手册截图前，用户必须在 Chrome DevTools MCP、Codex Computer Use、用户自行截图三种方式中选择一种；如果用户明确说“现在不截图/先跳过截图”，记录为 `skip`。
 - `markdown`：全部 Markdown 草稿完成后，用户必须确认可以进入 Word/TXT 生成。
 
@@ -63,7 +73,7 @@ python3 scripts/confirm_stage.py --workdir 软件著作权申请资料 --stage <
 一开始先在当前工作目录创建输出目录并检查运行能力：
 
 ```bash
-python3 scripts/check_environment.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/check_environment.py \
   --out-dir 软件著作权申请资料
 ```
 
@@ -81,14 +91,14 @@ python3 scripts/check_environment.py \
 
 用户选择：
 
-- 如果用户愿意安装完整环境，按 `vendor/docx-toolkit/scripts/setup.sh` 的要求安装依赖，再继续。完整环境生成和校验更规范。
+- 如果用户愿意安装完整环境，按 `${CLAUDE_SKILL_DIR}/vendor/docx-toolkit/scripts/setup.sh` 的要求安装依赖，再继续。完整环境生成和校验更规范。
 - 如果用户不安装，继续使用兜底方案生成 Markdown、TXT 和基础 DOCX。
 - 如果完整 DOCX 环境缺失，必须停止并等待用户选择；不得自动继续。
 
 用户回复后记录门禁：
 
 ```bash
-python3 scripts/confirm_stage.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py \
   --workdir 软件著作权申请资料 \
   --stage environment \
   --note "<用户选择>"
@@ -107,7 +117,7 @@ python3 scripts/confirm_stage.py \
 运行：
 
 ```bash
-python3 scripts/analyze_project.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/analyze_project.py \
   --project <项目目录> \
   --out 软件著作权申请资料/analysis/project.json
 ```
@@ -125,7 +135,7 @@ python3 scripts/analyze_project.py \
 在写申请表和操作手册前，先让脚本收集项目证据：
 
 ```bash
-python3 scripts/generate_business_context.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/generate_business_context.py \
   --project <项目目录> \
   --analysis 软件著作权申请资料/analysis/project.json \
   --software-name "<软件全称>" \
@@ -164,11 +174,30 @@ python3 scripts/generate_business_context.py \
 - `main_functions`
 - `technical_characteristics`
 - `manual_sections`
+- `manual_modules`
+- `system_requirements`
+- `faq`
+- `glossary`
+
+其中 `manual_modules` 是操作手册的核心输入，必须按真实页面、导航入口或业务流程填写。脚本不得按 `auth/query/form` 等分类模板自动补入口、步骤或反馈；缺少 `manual_modules` 或关键字段时必须停止让模型回到项目证据中补写。每个模块必须包含：
+
+- `title`：页面或流程名称。
+- `evidence`：对应页面、路由、组件、需求文档或 README 证据。
+- `purpose`：该页面在软件中的用途。
+- `usage` 或 `usage_scenario`：用户在什么业务场景下会使用该页面，正在处理什么具体事务。缺少时不得生成操作手册。
+- `entry`：用户从哪里进入该页面。
+- `visible_elements`：用户实际能看到的输入框、按钮、列表、标签、状态或结果区域。
+- `operation_steps`：按真实页面顺序写用户动作，不能写代码实现。
+- `validation_rules`：必填项、长度限制、权限、额度、状态、异常提示等规则；没有则留空数组。
+- `feedback`：操作完成后用户能看到的结果、提示或状态变化。
+- `screenshot`：截图预留说明。
+
+`manual_sections` 只允许补充当前软件本身的用途、业务场景、页面组织或用户流程，不要写“本操作手册用于……”“面向软著审核……”“不描述代码实现……”这类解释文档写作方式的元话语。最终操作手册应像真实软件说明书，而不是生成过程说明。
 
 然后运行：
 
 ```bash
-python3 scripts/generate_business_context.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/generate_business_context.py \
   --project <项目目录> \
   --analysis 软件著作权申请资料/analysis/project.json \
   --software-name "<软件全称>" \
@@ -198,7 +227,7 @@ python3 scripts/generate_business_context.py \
 生成 `业务理解.md/json` 后必须停止，等待用户确认或修改。业务理解确认前，不得生成申请表和操作手册。如果业务理解仍不充分，先请用户补充产品说明。用户确认后运行：
 
 ```bash
-python3 scripts/confirm_stage.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py \
   --workdir 软件著作权申请资料 \
   --stage business \
   --note "<用户确认内容>"
@@ -240,7 +269,7 @@ python3 scripts/confirm_stage.py \
 生成代码材料前，先运行候选文件分析：
 
 ```bash
-python3 scripts/propose_code_selection.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/propose_code_selection.py \
   --project <项目目录> \
   --analysis 软件著作权申请资料/analysis/project.json \
   --out-dir 软件著作权申请资料/草稿
@@ -255,13 +284,12 @@ python3 scripts/propose_code_selection.py \
 
 - `selected: true` 表示抽取该文件。
 - `selected: false` 表示不抽取该文件。
-- `start_line` 和 `end_line` 可用于只抽取某个文件的指定行段。
-- `model_reason` 必须说明为什么选择该文件或行段。
+- `model_reason` 必须说明为什么选择该文件。
 
-模型选择通常优先考虑前端入口、页面、核心组件、业务交互、数据请求、状态处理等能给审核员看懂软件功能的代码；如果相关前端代码不足 60 页，再补充后端服务、业务处理、配置等相关源码。补充文件同样必须写入 `代码文件选择.json` 并由用户确认。不要默认抽取全量代码库。用户确认并记录 `code-selection` 门禁后，代码抽取只读取 `代码文件选择.json` 中选中的文件和行段。用户确认后运行：
+模型选择通常优先考虑前端入口、页面、核心组件、业务交互、数据请求、状态处理等能给审核员看懂软件功能的代码；如果相关前端代码不足 60 页，再补充后端服务、业务处理等相关源码。补充文件同样必须写入 `代码文件选择.json` 并由用户确认。不要默认抽取全量代码库。代码材料按完整文件原样复制，不支持只抽取某个文件的中间行段。用户确认并记录 `code-selection` 门禁后，代码抽取只读取 `代码文件选择.json` 中选中的完整文件。用户确认后运行：
 
 ```bash
-python3 scripts/confirm_stage.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py \
   --workdir 软件著作权申请资料 \
   --stage code-selection \
   --note "<用户确认内容>"
@@ -272,7 +300,7 @@ python3 scripts/confirm_stage.py \
 运行代码材料抽取：
 
 ```bash
-python3 scripts/extract_code_material.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/extract_code_material.py \
   --project <项目目录> \
   --analysis 软件著作权申请资料/analysis/project.json \
   --selection 软件著作权申请资料/草稿/代码文件选择.json \
@@ -283,7 +311,7 @@ python3 scripts/extract_code_material.py \
 
 代码分页规则：
 
-- 每页默认 60 行，并在 Word 中使用紧凑固定行距，尽量写满页面后再换页。
+- 每页默认 50 行，并在 Word 中使用紧凑固定行距，尽量减少长行折行造成的页面溢出。
 - 总页数 `>= 60`：生成 `代码-前30页.md` 和 `代码-后30页.md`。
 - 总页数 `< 60` 且候选源码已用尽：只生成 `代码-全部.md`。
 - 总页数 `< 60` 但候选清单还有可补充源码：停止并要求用户在 `代码文件选择.json` 中继续选择补充文件。
@@ -293,7 +321,7 @@ python3 scripts/extract_code_material.py \
 生成申请表信息草稿：
 
 ```bash
-python3 scripts/generate_application_info.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/generate_application_info.py \
   --analysis 软件著作权申请资料/analysis/project.json \
   --code-manifest 软件著作权申请资料/草稿/代码提取清单.json \
   --business-context 软件著作权申请资料/草稿/业务理解.json \
@@ -305,7 +333,7 @@ python3 scripts/generate_application_info.py \
 生成后必须停止，让用户检查并补全 `草稿/申请表信息.md`。字段补全并确认后运行：
 
 ```bash
-python3 scripts/confirm_stage.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py \
   --workdir 软件著作权申请资料 \
   --stage application-fields \
   --note "<用户确认内容>"
@@ -314,7 +342,7 @@ python3 scripts/confirm_stage.py \
 生成操作手册草稿：
 
 ```bash
-python3 scripts/generate_manual_draft.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/generate_manual_draft.py \
   --analysis 软件著作权申请资料/analysis/project.json \
   --business-context 软件著作权申请资料/草稿/业务理解.json \
   --software-name "<软件全称>" \
@@ -322,7 +350,7 @@ python3 scripts/generate_manual_draft.py \
   --out-dir 软件著作权申请资料/草稿
 ```
 
-操作手册草稿不得强制套用用户提供的范本文案或固定章节。应先基于模型写入 `草稿/业务理解.json` 的 `manual_sections` 和项目页面入口，自主组织适合该项目的手册结构；通常需要覆盖软件概述、适用对象、运行环境、进入软件、主要功能、操作流程和注意事项等内容，但章节标题和顺序可以随项目实际调整。各章节应包含段落化说明，功能模块不能只列标题和步骤，必须写清楚模块用途、用户操作和系统反馈。语言要面向审核员和普通读者，说明“这个模块是干嘛的、用户怎么操作、操作后看到什么”，不要写代码实现、框架名称、接口封装、状态管理、异步队列等技术细节。撰写时由 agent 自行检查章节是否完整、内容是否过薄、语言是否过于技术化，并在草稿内部完成必要补写；完整草稿完成后只让用户做一次整体确认，确认前不得进入正式 Word/TXT 生成。
+操作手册草稿不得照抄用户提供的范本文案或旧项目内容，但应吸收其结构特点：先写相关文档、说明、功能特点和系统要求，再按真实页面或核心流程逐章说明操作，最后写常见问题解答和术语表。一级章节标题使用中文大写序号；相关文档章节必须是表格；功能特点和页面操作章节必须以段落展开，不用项目符号和编号列表堆信息。必须基于模型写入 `草稿/业务理解.json` 的 `manual_modules` 组织章节；`manual_sections` 只用于补充说明性段落，不应用来反复插入同一批功能模块。各功能章节必须写清页面用途、进入位置、用户看到的控件和数据、实际操作、输入限制或异常提示、操作结果和截图预留。语言要面向普通用户，说明“这个页面是干嘛的、用户怎么进入、用户点什么/填什么、操作后看到什么”，不要写代码实现、框架名称、接口封装、状态管理、异步队列等技术细节。撰写时由 agent 自行检查章节是否完整、内容是否过薄、语言是否过于技术化，并在草稿内部完成必要补写；完整草稿完成后只让用户做一次整体确认，确认前不得进入正式 Word/TXT 生成。
 
 生成脚本必须同时写出 `草稿/操作手册自检记录.md` 和 `草稿/操作手册自检记录.json`。自检记录至少包含：
 
@@ -331,7 +359,7 @@ python3 scripts/generate_manual_draft.py \
 - 第 3 轮：去除制式表达和 AI 味，重点检查重复句式、统一套话、空泛赞美、营销口号、过度整齐的排比和没有项目细节的正确废话。
 - 后续轮次：如果仍有问题，继续补写、去重、改写，不能把未修正的问题直接交给用户。
 
-操作手册的模块写作必须从 `草稿/业务理解.json` 的行业、目标用户、核心价值、业务功能和典型操作流程出发。不同模块要写出各自的业务作用，不能统一套用“进入页面、填写内容、提交按钮、查看结果”的固定句式；相近模块也要结合项目真实业务区分各自的操作目的和结果，不得把测试项目的功能名称、业务流程或示例文案写成通用规则。
+操作手册的模块写作必须从 `草稿/业务理解.json` 的行业、目标用户、核心价值、业务功能、典型操作流程和 `manual_modules` 出发。不同模块要写出各自的业务作用、入口、控件、规则和反馈，不能统一套用“进入页面、填写内容、提交按钮、查看结果”的固定句式，也不能使用“进入方式：/页面内容：/操作步骤：/操作规则：/操作结果与反馈：”这类字段标题；相近模块也要结合项目真实业务区分各自的操作目的和结果。自检时必须检查是否把同一批模块在多个章节中重复展开；如发现重复，改为每个真实页面或流程独立成章。不得把测试项目的功能名称、业务流程或示例文案写成通用规则。
 
 ### 8. 选择并获取截图
 
@@ -346,7 +374,7 @@ python3 scripts/generate_manual_draft.py \
 用户选择后，先记录门禁：
 
 ```bash
-python3 scripts/confirm_stage.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py \
   --workdir 软件著作权申请资料 \
   --stage screenshot-method \
   --method <chrome-devtools|computer-use|user-supplied|skip> \
@@ -361,7 +389,7 @@ python3 scripts/confirm_stage.py \
 - 选择跳过截图：不运行截图工具，继续保留操作手册中的可见截图预留文字；在生成报告中说明用户选择暂不截图，正式操作手册已预留截图位置。
 
 ```bash
-python3 scripts/capture_screenshots.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/capture_screenshots.py \
   --manual-dir 软件著作权申请资料/用户截图 \
   --out-dir 软件著作权申请资料/截图
 ```
@@ -377,9 +405,10 @@ python3 scripts/capture_screenshots.py \
 - 软件名称和版本号是否一致
 - 代码材料前30页、后30页页眉软件名称是否与 `申请表信息.md` 的“软件全称”一致
 - 代码材料前30页、后30页页眉版本号是否与 `申请表信息.md` 的“版本号”一致
+- 操作手册 Word 页眉是否与代码材料页眉一致，均使用 `申请表信息.md` 的“软件全称”和“版本号”
 - `业务理解.md` 是否准确反映软件真实业务、行业和目标用户
 - `申请表信息.md` 中“待用户确认”的字段是否已确认
-- 代码材料是否只来自用户确认的文件/行段
+- 代码材料是否只来自用户确认的完整文件
 - 操作手册是否符合审核员阅读场景，普通读者是否能看懂模块用途和操作方式
 - 操作手册每个章节是否有段落内容，核心模块是否写清模块用途、操作过程和结果反馈，是否避免过度技术化语言
 - 截图是否正确；若用户跳过截图，正式操作手册是否保留可见截图预留位置
@@ -387,7 +416,7 @@ python3 scripts/capture_screenshots.py \
 用户确认后，必须记录 `markdown` 门禁；未记录时不得生成正式 Word/TXT。
 
 ```bash
-python3 scripts/confirm_stage.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/confirm_stage.py \
   --workdir 软件著作权申请资料 \
   --stage markdown \
   --note "<用户确认内容>"
@@ -398,13 +427,13 @@ python3 scripts/confirm_stage.py \
 用户确认后运行：
 
 ```bash
-python3 scripts/build_docx_from_md.py \
+python3 ${CLAUDE_SKILL_DIR}/scripts/build_docx_from_md.py \
   --workdir 软件著作权申请资料 \
   --software-name "<软件全称>" \
   --version "<版本号>"
 ```
 
-正式生成脚本必须重新读取 `草稿/申请表信息.md` 中已确认的“软件全称”和“版本号”，并用它们生成正式资料文件名、代码 Word 页眉和操作手册 Word。若命令参数 `--software-name` / `--version` 与申请表字段不同，以申请表字段为准，并在 `正式资料/生成报告.md` 中记录提示。
+正式生成脚本必须重新读取 `草稿/申请表信息.md` 中已确认的“软件全称”和“版本号”，并用它们生成正式资料文件名、代码 Word 页眉和操作手册 Word 页眉。操作手册页眉必须与代码材料页眉格式一致：左侧为“软件全称 版本号”，右侧为“第 <页码> 页”。若命令参数 `--software-name` / `--version` 与申请表字段不同，以申请表字段为准，并在 `正式资料/生成报告.md` 中记录提示。
 
 输出：
 
@@ -429,13 +458,13 @@ python3 scripts/build_docx_from_md.py \
 可用命令：
 
 ```bash
-python3 -m py_compile scripts/*.py
-bash vendor/docx-toolkit/scripts/docx_preview.sh <生成的docx>
+python3 -m py_compile ${CLAUDE_SKILL_DIR}/scripts/*.py
+bash ${CLAUDE_SKILL_DIR}/vendor/docx-toolkit/scripts/docx_preview.sh <生成的docx>
 ```
 
-完整 DOCX 环境检查和安装必须直接恢复/构建 `vendor/docx-toolkit/scripts/dotnet/DocxToolkit.Cli/DocxToolkit.Cli.csproj`，不要对 `vendor/docx-toolkit/scripts/dotnet` 目录或 `.slnx` 文件执行隐式 restore/build。
+完整 DOCX 环境检查和安装必须直接恢复/构建 `${CLAUDE_SKILL_DIR}/vendor/docx-toolkit/scripts/dotnet/DocxToolkit.Cli/DocxToolkit.Cli.csproj`，不要对 `vendor/docx-toolkit/scripts/dotnet` 目录或 `.slnx` 文件执行隐式 restore/build。
 
-如果 `环境检查.md` 或 `vendor/docx-toolkit/scripts/env_check.sh` 显示 `.NET SDK` 缺失，说明完整 DOCX OpenXML 校验环境未就绪。用户明确选择不安装并记录 `environment` 门禁后，继续生成 Markdown、TXT 和基础 DOCX，并在报告中说明当前使用兜底路径。
+如果 `环境检查.md` 或 `${CLAUDE_SKILL_DIR}/vendor/docx-toolkit/scripts/env_check.sh` 显示 `.NET SDK` 缺失，说明完整 DOCX OpenXML 校验环境未就绪。用户明确选择不安装并记录 `environment` 门禁后，继续生成 Markdown、TXT 和基础 DOCX，并在报告中说明当前使用兜底路径。
 
 ## 何时询问用户
 
